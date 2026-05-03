@@ -271,7 +271,7 @@
     </form>
 
     <div class="footer">
-      Don't have an account? <a href="/signup.html">Sign up</a>
+      Don't have an account? <a id="signupLink" href="/signup.html">Sign up</a>
     </div>
   </div>
 
@@ -283,6 +283,11 @@
     const errorMsg = document.getElementById('errorMsg');
 
     const params = new URLSearchParams(window.location.search);
+
+    const signupLink = document.getElementById('signupLink');
+    if (window.location.search) {
+      signupLink.href = `/signup.html${window.location.search}`;
+    }
 
     function showError(msg) {
       errorMsg.textContent = msg;

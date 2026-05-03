@@ -26,7 +26,6 @@ app.get("/health", (req, res) =>
   res.json({ message: "Server is healthy", healthy: true }),
 );
 
-// OIDC Endpoints
 app.get("/.well-known/openid-configuration", (req, res) => {
   const ISSUER = `http://localhost:${PORT}`;
   return res.json({
@@ -42,8 +41,6 @@ app.get("/.well-known/jwks.json", async (_, res) => {
   const key = await jose.JWK.asKey(PUBLIC_KEY, "pem");
   return res.json({ keys: [key.toJSON()] });
 });
-
-// ─── Admin Routes ───────────────────────────────────────────
 
 app.get("/admin/register", (req, res) => {
   return res.sendFile(path.resolve("public", "register-app.html"));
@@ -73,8 +70,6 @@ app.post("/admin/register-app", async (req, res) => {
   res.status(201).json({ clientId, clientSecret });
 });
 
-// ─── OAuth Authenticate ─────────────────────────────────────
-
 app.get("/o/authenticate", async (req, res) => {
   const clientId = req.query.client_id as string | undefined;
 
@@ -94,10 +89,9 @@ app.get("/o/authenticate", async (req, res) => {
     return;
   }
 
-  // Read the template and inject app name
   const templatePath = path.resolve("public", "authenticate.html");
   let html = fs.readFileSync(templatePath, "utf-8");
-  html = html.replace("{{APP_NAME}}", application.displayName);
+  html = html.replaceAll("{{APP_NAME}}", application.displayName);
 
   res.type("html").send(html);
 });
@@ -110,7 +104,6 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
     return;
   }
 
-  // Validate user credentials
   const [user] = await db
     .select()
     .from(usersTable)
@@ -132,7 +125,6 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
     return;
   }
 
-  // If client_id is provided, do the OAuth code flow
   if (client_id) {
     const [application] = await db
       .select()
@@ -145,9 +137,8 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
       return;
     }
 
-    // Generate short code
     const code = crypto.randomBytes(32).toString("hex");
-    const expiresAt = new Date(Date.now() + 60 * 1000); // 1 minute
+    const expiresAt = new Date(Date.now() + 60 * 1000);
 
     await db.insert(authorizationCodesTable).values({
       code,
@@ -161,7 +152,6 @@ app.post("/o/authenticate/sign-in", async (req, res) => {
     return;
   }
 
-  // Fallback: no client_id, just return token directly (existing behavior)
   const ISSUER = `http://localhost:${PORT}`;
   const now = Math.floor(Date.now() / 1000);
 
@@ -222,8 +212,6 @@ app.post("/o/authenticate/sign-up", async (req, res) => {
   res.status(201).json({ ok: true });
 });
 
-// ─── Token Exchange ─────────────────────────────────────────
-
 app.post("/o/token-info", async (req, res) => {
   const { code, client_secret } = req.body;
 
@@ -232,7 +220,6 @@ app.post("/o/token-info", async (req, res) => {
     return;
   }
 
-  // Find the application by client_secret
   const [application] = await db
     .select()
     .from(applicationsTable)
@@ -244,7 +231,6 @@ app.post("/o/token-info", async (req, res) => {
     return;
   }
 
-  // Find the authorization code
   const [authCode] = await db
     .select()
     .from(authorizationCodesTable)
@@ -271,13 +257,11 @@ app.post("/o/token-info", async (req, res) => {
     return;
   }
 
-  // Mark code as used
   await db
     .update(authorizationCodesTable)
     .set({ used: true })
     .where(eq(authorizationCodesTable.id, authCode.id));
 
-  // Fetch the user
   const [user] = await db
     .select()
     .from(usersTable)
@@ -289,7 +273,6 @@ app.post("/o/token-info", async (req, res) => {
     return;
   }
 
-  // Generate JWT token
   const ISSUER = `http://localhost:${PORT}`;
   const now = Math.floor(Date.now() / 1000);
 
@@ -309,8 +292,6 @@ app.post("/o/token-info", async (req, res) => {
 
   res.json({ token });
 });
-
-// ─── User Info ──────────────────────────────────────────────
 
 app.get("/o/userinfo", async (req, res) => {
   const authHeader = req.headers.authorization;
@@ -357,5 +338,5 @@ app.get("/o/userinfo", async (req, res) => {
 });
 
 app.listen(PORT, () => {
-  console.log(`AuthServer is running on PORT ${PORT}`);
+  console.log(`Auth server running on port ${PORT}`);
 });
